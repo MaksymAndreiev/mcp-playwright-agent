@@ -1,6 +1,7 @@
 from google.adk.agents import Agent
 
 from mcp_playwright_agent.prompt import ROOT_AGENT_INSTRUCTION
+from mcp_playwright_agent.tools import get_client_edi
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioConnectionParams, StdioServerParameters
 
 root_agent = Agent(
@@ -29,6 +30,7 @@ root_agent = Agent(
                 'browser_hover',
                 'browser_press_key'
             ]
-        )
+        ),
+        get_client_edi
     ],
 )
