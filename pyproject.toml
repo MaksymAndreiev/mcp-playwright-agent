@@ -1,0 +1,31 @@
+[project]
+name = "mcp-playwright-agent"
+version = "0.1.0"
+description = "..."
+authors = [
+    {name = "Andreiv Maksym",email = "maxoggyha@gmail.com"}
+]
+
+#readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache License 2.0"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+requests = "^2.31.0"
+google-adk = "^1.18.0"
+pydantic = "^2.11.3"
+python-dotenv = "^1.1.0"
+google-cloud-aiplatform = {extras = ["adk", "agent_engines"], version = "^1.126.1"}
+absl-py = "^2.1.0"
+cloudpickle = "^3.0.0"
+deprecated = "^1.3.1"
+
+[tool.poetry.scripts]
+adk-short-bot = "mcp_playwright_agent:app"
+deploy = "deployment:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
