@@ -3,7 +3,7 @@ name = "mcp-playwright-agent"
 version = "0.1.0"
 description = "..."
 authors = [
-    {name = "Andreiv Maksym",email = "maxoggyha@gmail.com"}
+    {name = "Andreiv Maksym",email = "andreievmaksymv@gmail.com"}
 ]
 
 #readme = "README.md"
