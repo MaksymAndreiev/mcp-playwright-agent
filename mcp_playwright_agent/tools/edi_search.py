@@ -7,7 +7,6 @@ from typing import Optional
 from google.cloud import storage
 from google.api_core import exceptions as google_exceptions
 
-REGION = "us-central1"
 BUCKET_NAME = "extracted_data_bucket"
 _CONFIG_BLOB_PATH = "configs/company_sites.json"
 
@@ -31,11 +30,11 @@ def get_client_edi(
         text = blob.download_as_text()
         config_data = json.loads(text)
         companies = config_data.get("companies", [])
-        website = next(
-            (c.get("website", "") for c in companies if c.get("name", "").lower() == customer_name.lower()),
-            "",
-        )
-        return website or ""
+
+        # Build a normalized lookup dictionary for O(1) search
+        company_lookup = {c.get("name", "").lower(): c.get("website", "") for c in companies}
+        website = company_lookup.get(customer_name.lower(), "")
+        return website
     except google_exceptions.NotFound:
         logging.info("Config blob not found in bucket %s: %s", bucket_name, _CONFIG_BLOB_PATH)
         return ""
