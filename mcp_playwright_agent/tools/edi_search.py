@@ -1,49 +1,37 @@
-# python
 import json
-import os
 import logging
-from typing import Optional
 
-from google.cloud import storage
+from mcp_playwright_agent.tools.utils import BUCKET_NAME, CONFIG_BLOB_PATH, get_cached_lookup_dict
 from google.api_core import exceptions as google_exceptions
 
-BUCKET_NAME = "extracted_data_bucket"
-_CONFIG_BLOB_PATH = "configs/company_sites.json"
+logger = logging.getLogger(__name__)
+logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 
+def get_client_edi(customer_name: str) -> str:
+    """
+    Fetch company configuration from GCS and return the website URL for the given customer_name.
+    """
 
-def get_client_edi(
-    customer_name: str,
-    project: Optional[str] = None,
-    bucket_name: str = BUCKET_NAME,
-) -> str:
-    """
-    Fetch company_sites JSON from GCS and return the website for `customer_name`.
-    Returns empty string if not found or on recoverable errors.
-    """
-    project = project or os.getenv("GOOGLE_CLOUD_PROJECT")
-    storage_client = storage.Client(project=project)
+    logger.info(f"Looking up EDI for: {customer_name} in bucket {BUCKET_NAME}")
 
     try:
-        bucket = storage_client.bucket(bucket_name)
-        blob = bucket.blob(_CONFIG_BLOB_PATH)
-        # download_as_text will raise if blob does not exist / no permission
-        text = blob.download_as_text()
-        config_data = json.loads(text)
-        companies = config_data.get("companies", [])
+        companies = get_cached_lookup_dict(BUCKET_NAME, CONFIG_BLOB_PATH)
+        company = companies.get(customer_name.lower())
 
-        # Build a normalized lookup dictionary for O(1) search
-        company_lookup = {c.get("name", "").lower(): c.get("website", "") for c in companies}
-        website = company_lookup.get(customer_name.lower(), "")
-        return website
+        if company:
+            website = company.get("website", "")
+            return f"Found website for {customer_name}: {website}"
+        else:
+            return f"Customer '{customer_name}' not found."
+
     except google_exceptions.NotFound:
-        logging.info("Config blob not found in bucket %s: %s", bucket_name, _CONFIG_BLOB_PATH)
-        return ""
+        msg = f"Config file not found in bucket {BUCKET_NAME}: {CONFIG_BLOB_PATH}"
+        logger.error(msg)
+        return f"Error: {msg}"
     except json.JSONDecodeError:
-        logging.exception("Invalid JSON in config blob %s/%s", bucket_name, _CONFIG_BLOB_PATH)
-        return ""
-    except google_exceptions.GoogleAPICallError:
-        logging.exception("GCS API error while reading %s/%s", bucket_name, _CONFIG_BLOB_PATH)
-        return ""
-    except Exception:
-        logging.exception("Unexpected error in get_client_edi")
-        raise
+        msg = f"Invalid JSON in config file {CONFIG_BLOB_PATH}"
+        logger.error(msg)
+        return f"Error: {msg}"
+    except Exception as e:
+        logger.exception("Unexpected error in get_client_edi")
+        return f"Error retrieving data: {str(e)}"
