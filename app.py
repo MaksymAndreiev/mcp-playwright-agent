@@ -12,7 +12,9 @@ import json
 import re
 from ultralytics import YOLO
 
-from mcp_playwright_agent.agent import root_agent
+from mcp_playwright_agent.agent import root_agent, demo_agent
+
+from mcp_playwright_agent.demo_agent import login
 
 # --- 1. SYSTEM CONFIGURATION ---
 if sys.platform == 'win32':
@@ -40,33 +42,43 @@ def init_resources():
 
 def create_app():
     print("🔄 SYSTEM: Starting new Agent...")
-    return reasoning_engines.AdkApp(agent=root_agent, enable_tracing=True)
+    # return reasoning_engines.AdkApp(agent=root_agent, enable_tracing=True)
+    return reasoning_engines.AdkApp(agent=demo_agent, enable_tracing=True)
 
-def destroy_current_session():
-    """Tear down the remote ADK session before dropping local references."""
-    session_id = st.session_state.get("session_id")
+
+def destroy_app():
+    """Forcefully destroy the ADK app and all its connections."""
     app = st.session_state.get("app_instance")
-    if not session_id:
+    if not app:
         return
 
-    try:
-        if app and hasattr(app, "delete_session"):
-            app.delete_session(session_id)
-        else:
-            engines = getattr(reasoning_engines, "agent_engines", None)
-            if engines:
-                remote_app = engines.get(session_id)
-                if remote_app:
-                    remote_app.delete(force=True)
-        print(f"🗑️ Deleted remote session: {session_id}")
-    except Exception as exc:
-        print(f"Remote session cleanup failed: {exc}")
-    finally:
-        st.session_state.pop("session_id", None)
+    # 1. Try graceful shutdown methods
+    for method in ["close", "stop", "shutdown", "__del__"]:
+        if hasattr(app, method):
+            try:
+                getattr(app, method)()
+            except Exception as e:
+                print(f"App {method}() failed: {e}")
+
+    # 2. Kill internal processes if app tracks them
+    if hasattr(app, "_processes"):
+        for proc in app._processes:
+            try:
+                proc.terminate()
+                proc.kill()
+            except:
+                pass
+
+    # 3. Force garbage collection
+    st.session_state.pop("app_instance", None)
+    st.session_state.pop("session_id", None)
+
+def create_demo_app():
+    pass
 
 def ensure_new_session():
     """Recreate agent app and start a fresh session."""
-    destroy_current_session()
+    destroy_app()
 
     try:
         # Remove existing app instance if present
@@ -181,6 +193,73 @@ def check_oil_status(ocr_json_string):
 
     except Exception as e:
         return "Error", "⚠️ Check Data", st.warning
+
+
+def clean_scene():
+    """
+    Stop the agent, clear UI state and temp files, and recreate a fresh local app/session
+    without stopping the Streamlit app itself.
+    """
+    # 1. Cancel any running async tasks
+    try:
+        loop = asyncio.get_event_loop()
+        for task in asyncio.all_tasks(loop):
+            if not task.done():
+                task.cancel()
+    except Exception as e:
+        print(f"Clean: async task cancellation failed: {e}")
+
+    # 2. Explicitly close/stop the app instance before destroying session
+    app = st.session_state.get("app_instance")
+    if app:
+        try:
+            if hasattr(app, "close"):
+                app.close()
+            elif hasattr(app, "stop"):
+                app.stop()
+        except Exception as e:
+            print(f"Clean: app close failed: {e}")
+
+    # 3. Tear down remote session if any
+    try:
+        destroy_app()
+    except Exception as e:
+        print(f"Clean: destroy_current_session failed: {e}")
+
+    # 4. Remove local app_instance and session id
+    st.session_state.pop("app_instance", None)
+    st.session_state.pop("session_id", None)
+
+    # 5. Clear UI / workflow keys (keep global settings if any)
+    keys_to_clear = ("messages", "auto_trigger_prompt", "yolo_camera", "yolo_upload")
+    for k in keys_to_clear:
+        st.session_state.pop(k, None)
+
+    # 6. Remove temporary files created by detection flow
+    try:
+        temp_path = "temp_capture.jpg"
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    except Exception as e:
+        print(f"Clean: temp file removal failed: {e}")
+
+    # 7. Small delay to ensure cleanup completes
+    time.sleep(0.5)
+
+    # 8. Reinitialize resources and create a fresh agent session
+    try:
+        init_resources()
+        st.session_state.app_instance = create_app()
+        session = st.session_state.app_instance.create_session(user_id="user")
+        st.session_state.session_id = session.id
+        st.session_state.messages = []
+        st.success("Scene cleaned and agent restarted.")
+    except Exception as e:
+        st.error(f"Clean Scene Error: {e}")
+
+    # 9. Refresh UI to reflect the cleared state
+    st.rerun()
+
 
 # --- 6. AGENT EXECUTION (TIMELINE MODE) ---
 def run_agent(user_input, auto_mode=False):
@@ -334,6 +413,8 @@ with st.sidebar:
 
     st.divider()
     st.header("🛠️ Controls")
+    if st.button("🧹 Clean Scene (Reset Agent)"):
+        clean_scene()
     if st.button("🔴 Hard Reset (Kill Processes)"):
         os.system("taskkill /F /IM node.exe /T")
         os.system("taskkill /F /IM python.exe /T")
@@ -366,7 +447,8 @@ with col_detect:
     camera_temp = st.camera_input("Capture Image for Part Detection", key="yolo_camera")
 
     # Dropdown for manual upload
-    uploaded_yolo_file = st.file_uploader("Or Upload Image for Part Detection", type=['png', 'jpg', 'jpeg'], key="yolo_upload")
+    uploaded_yolo_file = st.file_uploader("Or Upload Image for Part Detection", type=['png', 'jpg', 'jpeg'],
+                                          key="yolo_upload")
     if uploaded_yolo_file:
         camera_temp = uploaded_yolo_file
 
