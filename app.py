@@ -14,8 +14,6 @@ from ultralytics import YOLO
 
 from mcp_playwright_agent.agent import root_agent, demo_agent
 
-from mcp_playwright_agent.demo_agent import login
-
 # --- 1. SYSTEM CONFIGURATION ---
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -360,10 +358,11 @@ def run_agent(user_input, auto_mode=False):
 
 # --- SIDEBAR (UPLOAD) ---
 with st.sidebar:
-    st.header("📤 1. File Upload")
-    uploaded_file = st.file_uploader("Select Invoice/Order (Image/PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
+    # st.header("📤 1. File Upload")
+    # uploaded_file = st.file_uploader("Select Invoice/Order (Image/PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
+    camera_input = st.camera_input("📸 Capture Invoice/Order", key="upload_camera")
 
-    if uploaded_file:
+    if camera_input:
         # Standard Streamlit pattern: Button triggers the flow
         if st.button("🚀 Process & Run", type="primary"):
             ocr_result = None  # Variable to store result outside the status block
@@ -371,7 +370,7 @@ with st.sidebar:
             # --- PHASE 1: LOADING (Collapsible) ---
             with st.status("Processing...", expanded=True) as status:
                 st.write("Uploading to Google Cloud Storage...")
-                if upload_to_gcs(uploaded_file):
+                if upload_to_gcs(camera_input):
                     st.write("✅ Upload complete.")
 
                     st.write("Waiting for OCR (Pub/Sub)...")
@@ -445,12 +444,6 @@ with col_detect:
 
     # Camera input for YOLO
     camera_temp = st.camera_input("Capture Image for Part Detection", key="yolo_camera")
-
-    # Dropdown for manual upload
-    uploaded_yolo_file = st.file_uploader("Or Upload Image for Part Detection", type=['png', 'jpg', 'jpeg'],
-                                          key="yolo_upload")
-    if uploaded_yolo_file:
-        camera_temp = uploaded_yolo_file
 
     if camera_temp:
         # Save to a temp file
