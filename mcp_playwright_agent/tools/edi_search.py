@@ -35,3 +35,9 @@ def get_client_edi(customer_name: str) -> str:
     except Exception as e:
         logger.exception("Unexpected error in get_client_edi")
         return f"Error retrieving data: {str(e)}"
+
+def demo_get_client_edi(customer_name: str) -> str:
+    """
+    Demo function to simulate fetching company website.
+    """
+    return f"Found website for {customer_name}: https://wwwao9.ffp.co.jp/nmtj_test.supplier/Logon"
