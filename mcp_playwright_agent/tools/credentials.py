@@ -74,3 +74,14 @@ def get_customer_credentials(customer_name: str) -> str:
     except Exception as e:
         logger.exception("Error in get_customer_credentials")
         return f"Error: {str(e)}"
+
+def demo_get_customer_credentials(customer_name: str) -> str:
+    """
+    Demo version of get_customer_credentials that returns dummy data.
+    """
+    dummy_data = {
+        "company_code": "0289",
+        "user_id": "asai",
+        "password": "NMTJ2023%"
+    }
+    return json.dumps(dummy_data)
