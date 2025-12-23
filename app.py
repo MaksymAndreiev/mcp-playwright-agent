@@ -4,18 +4,15 @@ import sys
 import time
 import nest_asyncio
 import asyncio
-import importlib
 from google.cloud import pubsub_v1
 from google.cloud import storage
 from vertexai.preview import reasoning_engines
 import vertexai
 import json
 import re
+from ultralytics import YOLO
 
 from mcp_playwright_agent.agent import root_agent
-from google.adk.models import Gemini
-from google.adk.agents import Agent
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioConnectionParams, StdioServerParameters
 
 # --- 1. SYSTEM CONFIGURATION ---
 if sys.platform == 'win32':
@@ -364,17 +361,41 @@ with col_chat:
 with col_detect:
     # --- YOLO DETECTION ---
     st.subheader("🔍 Part Detection")
-    yolo_image = st.file_uploader("Upload Image for Part Detection", type=['png', 'jpg', 'jpeg'], key="yolo_uploader")
 
-    if yolo_image and yolo_image.id != st.session_state.get('yolo_image_id'):
-        st.session_state.yolo_image_id = yolo_image.id
-        if 'detected_image' in st.session_state:
-            del st.session_state.detected_image
-        if 'prediction' in st.session_state:
-            del st.session_state.prediction
+    # Camera input for YOLO
+    camera_temp = st.camera_input("Capture Image for Part Detection", key="yolo_camera")
 
-    if yolo_image:
-        if st.button("🔎 Detect Parts", type="primary"):
-            with st.status("Running detection..."):
-                pass
+    # Dropdown for manual upload
+    uploaded_yolo_file = st.file_uploader("Or Upload Image for Part Detection", type=['png', 'jpg', 'jpeg'], key="yolo_upload")
+    if uploaded_yolo_file:
+        camera_temp = uploaded_yolo_file
 
+    if camera_temp:
+        # Save to a temp file
+        with open("temp_capture.jpg", "wb") as f:
+            f.write(camera_temp.getbuffer())
+
+        st.info("Running part detection...")
+
+        # Run YOLO inference
+        model_path = "my_model_latest.pt"
+        model = YOLO(model_path, task='detect')
+        labels = model.names
+        results = model.predict(source="temp_capture.jpg", conf=0.5, save=False)
+
+        # Display results
+        for result in results:
+            annotated_frame = result.plot()
+            st.image(annotated_frame, caption="Detected Parts")
+
+            # List detected parts
+            if result.boxes:
+                st.markdown("**Detected Parts:**")
+                box = result.boxes[0]
+                cls_id = int(box.cls[0])
+                part_name = labels.get(cls_id, "Unknown")
+                conf_score = box.conf[0].item()
+                st.write(f"This is a {part_name}")
+
+            else:
+                st.write("No parts detected.")
