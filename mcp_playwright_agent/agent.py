@@ -12,8 +12,9 @@ import google.auth.transport.requests
 import google.oauth2.id_token
 from mcp import StdioServerParameters
 
-from mcp_playwright_agent.prompt import ROOT_AGENT_INSTRUCTION
+from mcp_playwright_agent.prompt import ROOT_AGENT_INSTRUCTION, DEMO_AGENT_INSTRUCTION
 from mcp_playwright_agent.tools import get_client_edi, get_customer_credentials, get_current_date
+from mcp_playwright_agent.tools import demo_get_client_edi, demo_get_customer_credentials
 
 load_dotenv()
 
@@ -105,4 +106,12 @@ root_agent = Agent(
     description="Agent that automates browser actions to retrieve EDI and credentials.",
     instruction=ROOT_AGENT_INSTRUCTION,
     tools=[MCP_toolset_local, get_client_edi, get_customer_credentials, get_current_date],
+)
+
+demo_agent = Agent(
+    name="mcp_playwright_demo_agent",
+    model=os.environ.get("MODEL", "gemini-2.5-flash"),
+    description="Agent that automates browser actions to retrieve EDI and credentials.",
+    instruction=DEMO_AGENT_INSTRUCTION,
+    tools=[MCP_toolset_local, demo_get_client_edi, demo_get_customer_credentials, get_current_date],
 )
