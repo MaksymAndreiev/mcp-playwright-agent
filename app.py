@@ -12,7 +12,7 @@ import json
 import re
 from ultralytics import YOLO
 
-from mcp_playwright_agent.agent import root_agent, demo_agent
+from mcp_playwright_agent.agent import root_agent
 
 # --- 1. SYSTEM CONFIGURATION ---
 if sys.platform == 'win32':
@@ -359,10 +359,10 @@ def run_agent(user_input, auto_mode=False):
 # --- SIDEBAR (UPLOAD) ---
 with st.sidebar:
     # st.header("📤 1. File Upload")
-    # uploaded_file = st.file_uploader("Select Invoice/Order (Image/PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
-    camera_input = st.camera_input("📸 Capture Invoice/Order", key="upload_camera")
+    uploaded_file = st.file_uploader("Select Invoice/Order (Image/PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
+    # camera_input = st.camera_input("📸 Capture Invoice/Order", key="upload_camera")
 
-    if camera_input:
+    if uploaded_file:
         # Standard Streamlit pattern: Button triggers the flow
         if st.button("🚀 Process & Run", type="primary"):
             ocr_result = None  # Variable to store result outside the status block
@@ -370,7 +370,7 @@ with st.sidebar:
             # --- PHASE 1: LOADING (Collapsible) ---
             with st.status("Processing...", expanded=True) as status:
                 st.write("Uploading to Google Cloud Storage...")
-                if upload_to_gcs(camera_input):
+                if upload_to_gcs(uploaded_file):
                     st.write("✅ Upload complete.")
 
                     st.write("Waiting for OCR (Pub/Sub)...")
