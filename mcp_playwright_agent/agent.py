@@ -12,9 +12,8 @@ import google.auth.transport.requests
 import google.oauth2.id_token
 from mcp import StdioServerParameters
 
-from mcp_playwright_agent.prompt import ROOT_AGENT_INSTRUCTION, DEMO_AGENT_INSTRUCTION
+from mcp_playwright_agent.prompt import ROOT_AGENT_INSTRUCTION
 from mcp_playwright_agent.tools import get_client_edi, get_customer_credentials, get_current_date
-from mcp_playwright_agent.tools import demo_get_client_edi, demo_get_customer_credentials
 
 load_dotenv()
 
@@ -23,10 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_auth_token(url):
-    # --- ФІКС: Якщо це локальний сервер, токен не треба ---
     if "localhost" in url or "127.0.0.1" in url:
         return None
-    # -----------------------------------------------------
 
     from urllib.parse import urlparse
     parsed = urlparse(url)
@@ -36,8 +33,6 @@ def get_auth_token(url):
         auth_req = google.auth.transport.requests.Request()
         return google.oauth2.id_token.fetch_id_token(auth_req, audience)
     except Exception as e:
-        # Можна закоментувати logger.warning, щоб не дратувало локально
-        # logger.warning(f"Could not fetch ID token: {e}")
         return os.environ.get("ID_TOKEN")
 
 
@@ -106,12 +101,4 @@ root_agent = Agent(
     description="Agent that automates browser actions to retrieve EDI and credentials.",
     instruction=ROOT_AGENT_INSTRUCTION,
     tools=[MCP_toolset_local, get_client_edi, get_customer_credentials, get_current_date],
-)
-
-demo_agent = Agent(
-    name="mcp_playwright_demo_agent",
-    model=os.environ.get("MODEL", "gemini-2.5-flash"),
-    description="Agent that automates browser actions to retrieve EDI and credentials.",
-    instruction=DEMO_AGENT_INSTRUCTION,
-    tools=[MCP_toolset_local, demo_get_client_edi, demo_get_customer_credentials, get_current_date],
 )
